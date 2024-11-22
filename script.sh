@@ -7,7 +7,7 @@ PROCESS_NAME="apache2"
 RESTART_COMMAND="sudo systemctl restart apache2"
 
 # Log File
-LOG_FILE="/var/log/script.log"
+# LOG_FILE="/var/log/script.log"
 # sudo chown jenkins:jenkins /var/log/scripttask3.log
 # sudo chmod 664 /var/log/scripttask3.log
 
