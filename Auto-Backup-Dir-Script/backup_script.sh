@@ -1,51 +1,69 @@
 #!/bin/bash
 
-# Logging function
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> /var/log/backup_script.log
+# Backup Script
+# This script backs up a specified source directory to a destination directory, 
+# with optional compression, logging, and old backup cleanup.
+
+LOG_FILE="/var/log/backup_script.log"
+
+# Function to log messages
+log_message() {
+    local MESSAGE=$1
+    echo "$(date '+%Y-%m-%d %H:%M:%S') : $MESSAGE" >> "$LOG_FILE"
 }
 
-# Input arguments
-SOURCE_DIR=$1
-DEST_DIR=$2
-COMPRESS=$3
-
-# Check if source directory exists
-if [ ! -d "$SOURCE_DIR" ]; then
-    log "ERROR: Source directory $SOURCE_DIR does not exist."
+# Check for valid arguments
+if [ "$#" -lt 2 ]; then
+    echo "Usage: $0 <source_directory> <destination_directory> [--compress]"
+    log_message "ERROR: Insufficient arguments provided."
     exit 1
 fi
 
-# Ensure destination directory exists
+SOURCE_DIR=$1
+DEST_DIR=$2
+COMPRESS=false
+
+# Check for --compress flag
+if [ "$#" -eq 3 ] && [ "$3" == "--compress" ]; then
+    COMPRESS=true
+fi
+
+# Verify source directory exists
+if [ ! -d "$SOURCE_DIR" ]; then
+    log_message "ERROR: Source directory '$SOURCE_DIR' does not exist."
+    exit 1
+fi
+
+# Create destination directory if it doesn't exist
 if [ ! -d "$DEST_DIR" ]; then
     mkdir -p "$DEST_DIR"
     if [ $? -ne 0 ]; then
-        log "ERROR: Could not create destination directory $DEST_DIR."
+        log_message "ERROR: Failed to create destination directory '$DEST_DIR'."
         exit 1
     fi
-    log "INFO: Created destination directory $DEST_DIR."
 fi
 
-# Define backup filename
+# Backup filename with timestamp
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
-BACKUP_FILE="$DEST_DIR/backup_$TIMESTAMP"
+BACKUP_NAME="backup_${TIMESTAMP}"
+BACKUP_PATH="$DEST_DIR/$BACKUP_NAME"
 
 # Perform backup
-if [ "$COMPRESS" == "--compress" ]; then
-    BACKUP_FILE="$BACKUP_FILE.tar.gz"
-    tar -czf "$BACKUP_FILE" -C "$SOURCE_DIR" .
+if [ "$COMPRESS" = true ]; then
+    BACKUP_PATH="${BACKUP_PATH}.tar.gz"
+    tar -czf "$BACKUP_PATH" -C "$SOURCE_DIR" .
     if [ $? -eq 0 ]; then
-        log "INFO: Backup successfully compressed to $BACKUP_FILE."
+        log_message "Backup created with compression: $BACKUP_PATH"
     else
-        log "ERROR: Failed to compress and create backup."
+        log_message "ERROR: Failed to create compressed backup."
         exit 1
     fi
 else
-    cp -r "$SOURCE_DIR"/* "$DEST_DIR"
+    cp -r "$SOURCE_DIR" "$BACKUP_PATH"
     if [ $? -eq 0 ]; then
-        log "INFO: Backup successfully copied to $DEST_DIR."
+        log_message "Backup created without compression: $BACKUP_PATH"
     else
-        log "ERROR: Failed to copy files to backup destination."
+        log_message "ERROR: Failed to copy files for backup."
         exit 1
     fi
 fi
@@ -53,7 +71,10 @@ fi
 # Cleanup old backups (older than 7 days)
 find "$DEST_DIR" -type f -mtime +7 -exec rm -f {} \;
 if [ $? -eq 0 ]; then
-    log "INFO: Old backups older than 7 days removed."
+    log_message "Old backups (older than 7 days) removed from '$DEST_DIR'."
 else
-    log "WARNING: Failed to clean up old backups."
+    log_message "ERROR: Failed to remove old backups."
 fi
+
+log_message "Backup process completed successfully."
+exit 0
