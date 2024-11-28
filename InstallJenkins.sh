@@ -1,6 +1,4 @@
 #!/bin/bash
-#Jayapramod manikantan
-#E23CSEU0172
 
 # Function to handle errors
 error_exit() {
